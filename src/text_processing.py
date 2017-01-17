@@ -26,7 +26,7 @@ class TextProcessor(threading.Thread):
 
     def process_text(self, status):
         '''
-        Tokenize and embedd status text
+        Tokenize and embed status text
 
         See the spacy documentation on details about the embedding.
 
@@ -45,8 +45,8 @@ class TextProcessor(threading.Thread):
                 logging.debug('Received tweet')
                 status = self.queues['text_processor'].get()
                 status = self.process_text(status)
+                self.queues['database'].update({'id': status['id']}, status)
                 logging.debug('Processed tweet')
-                self.queues['classifier'].put(status)
         logging.debug('Terminating.')
         self.cleanup()
 

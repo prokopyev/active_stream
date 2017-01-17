@@ -44,6 +44,7 @@ class Listener(tweepy.StreamListener):
         '''
         status['classifier_relevant'] = None
         status['manual_relevant'] = None
+        status['to_annotate'] = True
         return status
 
     def filter_status(self, status):
@@ -69,7 +70,7 @@ class Streamer(threading.Thread):
     credentials: dict, containing Twitter API credentials.
     queues: dict containing all queues to pass data between Threads.
     offline: bool, if set to true, no tweets from the API are grabbed but fake
-        tweets are vreated instead. For testing and developing offline.
+        tweets are created instead. For testing and developing offline.
     name: str, name of the thread.
     '''
     def __init__(self, keyword_monitor, credentials, queues, name=None, 

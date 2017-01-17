@@ -35,25 +35,24 @@ class Annotator(threading.Thread):
     def run(self):
         logging.debug('Running.')
         while not shared.TERMINATE:
-            if not self.queues['annotator'].empty():
-                status = self.queues['annotator'].get()
-                while not shared.TERMINATE:
-                    print(status['text'])
-                    annotation = input('Relevant? (y/n)')
-                    if annotation == 'y':
-                        status['manual_relevant'] = True
-                        shared.ONE_POSITIVE = True
-                        shared.RUN_TRAINER = True 
-                        break
-                    elif annotation == 'n':
-                        status['manual_relevant'] = False
-                        shared.ONE_NEGATIVE = True
-                        shared.RUN_TRAINER = True
-                        break
-                    else:
-                        continue
-                self.queues['database'].update({'id': status['id']}, status,
-                                               upsert=True)
+            cursor = self.queues['database'].find({'to_annotate': True})
+
+            for s in cursor:
+                print(s['text'])
+                annotation = input('Relevant (y/n)? ')
+                if annotation == 'y':
+                    s['manual_relevant'] = True
+                    shared.ONE_POSITIVE = True
+                    shared.RUN_TRAINER = True
+                elif annotation == 'n':
+                    status['manual_relevant'] = False
+                    shared.ONE_NEGATIVE = True
+                    shared.RUN_TRAINER = True
+                else:
+                    continue
+
+                self.queues['database'].update({'id': s['id']}, {'$set': {'manual_relevant': s['manual_relevant']}}, upsert=True)
+            
         # Run cleanup if terminated
         logging.debug('Terminating')
         self.cleanup()

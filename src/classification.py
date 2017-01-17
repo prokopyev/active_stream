@@ -43,23 +43,35 @@ class Classifier(threading.Thread):
         logging.debug('Running.')
         while not shared.TERMINATE:
             # Check for new model
-            self.update_clf()
+            if shared.RUN_TRAINER:
+                X_labelled = []
+                y = []
+                cursor = self.queues['database'].find({'manual_relevant': {'$ne': None}})
+                for d in cursor:
+                    X_labelled.append(d['embedding'])
+                    y.append(d['manual_relevant'])
 
-            # Classify statuses in queue
-            if not self.queues['classifier'].empty():
-                status = self.queues['classifier'].get()
-                status = self.classify_status(status)
-                logging.debug('Received tweet. Probability relevant: {}'.format(
-                    status['probability_relevant']))
+                X_labelled = np.array(X_labelled)
+                y = np.array(y)
 
-                # Send uncertain statuses to annotation module
-                if (status['probability_relevant'] > 0.4 
-                        and status['probability_relevant'] < 0.6):
-                   self.queues['annotator'].put(status) 
-                
-                # Put status into database
-                self.queues['database'].update({'id': status['id']}, status,
-                                               upsert=True)
+                self.clf.partial_fit(X, y, classes=np.array([0, 1]))
+
+                X = []
+                probs = []
+                cursor = self.queues['database'].find({}, {'embedding': 1})
+                for d in cursor:
+                    X.append(d['embedding'])
+
+                X = np.array(X)
+                probs = self.clf.predict_proba(X)
+                entropy = stats.distributions.entropy(probs.T)
+
+                max_entropy = np.argsort(entropy)[-10:]
+
+                # find which status match those in max_entropy
+                # and set those to have to_annotate = True if they aren't already
+                # annotated
+                # self.queues['database'].update({'id': })
 
         logging.debug('Terminating.')
         self.cleanup()
